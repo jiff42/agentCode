@@ -28,10 +28,8 @@ available_tools = {
 
 
 # --- 1. 配置LLM客户端 ---
-API_KEY = "sk-fokfrwytmxcgjokggosenfodksgpoykelgsjqqznsixbnumo"
-BASE_URL = "https://api.siliconflow.cn/v1"
-MODEL_ID = "deepseek-ai/DeepSeek-V3.2"
-os.environ['TAVILY_API_KEY'] = "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"
+from default import API_KEY, BASE_URL, MODEL_ID, TAVILY_API_KEY
+os.environ['TAVILY_API_KEY'] = TAVILY_API_KEY
 num_turns = 5
 
 llm = OpenAICompatibleClient(
