@@ -1,6 +1,9 @@
 import os
 from serpapi import SerpApiClient
+from dotenv import load_dotenv
 from typing import Dict, Any
+
+load_dotenv()
 
 def search(query: str) -> str:
     """
@@ -16,7 +19,7 @@ def search(query: str) -> str:
         params = {
             "engine": "google",
             "q": query,
-            " serpapi_api_key": api_key,
+            "api_key": api_key,
             "gl": "cn",        # 搜索区域，cn=中国
             "hl": "zh-cn",     # 界面语言，zh-cn=简体中文
         }
@@ -73,7 +76,31 @@ class ToolExecutor:
             for name, info in self.tools.items()
         ])
 
-        
+
+# ***** 工具初始化与使用示例 *****
+if __name__ == '__main__':
+    # 1. 初始化工具执行器
+    toolExecutor = ToolExecutor()
+
+    # 2. 注册实战搜索工具
+    search_description = "一个网页搜搜引擎。当需要回答关于时事、事实以及在知识库中找不到信息时，应使用此工具。"
+    toolExecutor.registerTool("Search", search_description, search)
+
+    # 3. 打印可用的工具
+    print("\n***** 可用的工具 *****")
+    print(toolExecutor.getAvailableTools())
+
+    # 4. 智能体的Action调用
+    print("\n***** 执行Action: Search['英伟达最新GPU的型号是什么，具体信息是什么'] *****")
+    tool_name = "Search"
+    tool_input = "英伟达最新GPU的型号是什么，具体信息是什么"
+    tool_function = toolExecutor.getTool(tool_name)
+    if tool_function:
+        observation = tool_function(tool_input)
+        print("***** 观察(observation) *****")
+        print(observation)
+    else:
+        print(f"错误：未找到名为'{tool_name}'的工具。")
 
         
         
