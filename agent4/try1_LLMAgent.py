@@ -17,9 +17,9 @@ class HelloAgentsLLM:
         初始化LLM客户端。
         优先使用传入的参数；如果没有传入，则尝试从环境变量中获取。
         """
-        self.model = model or os.getenv("LLM_MODEL_ID_1")
-        self.api_key = api_key or os.getenv("LLM_API_KEY_1")
-        self.base_url = base_url or os.getenv("LLM_BASE_URL_1")
+        self.model = model or os.getenv("LLM_MODEL_ID")
+        self.api_key = api_key or os.getenv("LLM_API_KEY")
+        self.base_url = base_url or os.getenv("LLM_BASE_URL")
         self.timeout = timeout or int(os.getenv("LLM_TIMEOUT", 60))
         
         if not self.model:
