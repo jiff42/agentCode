@@ -1,3 +1,5 @@
+import ast
+
 from try1_LLMAgent import HelloAgentsLLM
 
 PLANNER_PROMPT_TEMPLATE = """
@@ -13,9 +15,29 @@ PLANNER_PROMPT_TEMPLATE = """
 ```
 """
 
+EXECUTOR_PROMPT_TEMPLATE = """
+你是一位顶级的AI执行专家。你的任务是严格按照给定的计划，一步步地解决问题。
+你将收到原始问题、完整的计划、以及到目前为止已经完成的步骤和结果。
+请你专注于解决“当前步骤”，并输出该步骤的最终答案，不要输出任何额外的解释或对话。
+
+# 原始问题:
+{question}
+
+# 完整计划:
+{plan}
+
+# 历史步骤与结果:
+{history}
+
+# 当前步骤:
+{current_step}
+
+请仅输出针对“当前步骤”的回答:
+"""
+
 class Planner:
     def __init__(self, llm_client):
-        self.llm = llm_client
+        self.llm_client = llm_client
 
     def plan(self, question: str) -> list[str]:
         """根据问题生成一个行动计划。"""
@@ -34,7 +56,7 @@ class Planner:
             return plan if isinstance(plan, list) else [] 
             
 
-        except (ValueError, syntaxError, IndexError) as e:
+        except (ValueError, SyntaxError, IndexError) as e:
             print(f"错误：无法解析计划列表：{e}")
             print(f"原始响应：{response_txt}")
             return []
@@ -42,3 +64,79 @@ class Planner:
             print(f"未知错误：{e}")
             print(f"原始响应：{response_txt}")
             return []
+
+
+class Executor:
+    def __init__(self, llm_client):
+        self.llm_client = llm_client
+
+    def execute(self, question: str, plan: list[str]) -> str:
+        """
+        根据计划，逐步执行并解决问题
+        """
+        history = ""  # 用于存储历史步骤和结果的字符串
+        print('\n--- 正在执行计划 ---')
+
+        for i, step in enumerate(plan):
+            print(f"\n-> 正在执行步骤 {i+1}/{len(plan)}: {step}")
+            prompt = EXECUTOR_PROMPT_TEMPLATE.format(
+                question=question,
+                history=history if history else "无",   # 如果是第一步，则历史为空
+                current_step=step,
+                plan=plan
+            )
+
+            messages = [{"role": "user", "content": prompt}]
+            response_txt = self.llm_client.think(messages=messages) or ''
+            # 更新历史记录
+            history += f"步骤 {i+1}: {step}\n结果:  {response_txt}\n\n"
+            print(f"✅步骤 {i+1} 执行完成：\n{response_txt}")
+
+        # 循环结束，最后一步的相应就是最终答案
+        final_answer = response_txt
+        return final_answer
+
+
+class PlanAndSolveAgent:
+    def __init__(self, llm_client):
+        """
+        初始化智能体，同时创建规划器和执行器实例。
+        """
+        self.llm_client = llm_client
+        self.planner = Planner(self.llm_client)
+        self.executor = Executor(self.llm_client)
+
+    def run(self, question: str):
+        """
+        运行智能体的完整流程：先规划，后执行。
+        """
+        print(f"\n--- 开始处理问题 ---\n问题：{question}")
+
+        # 1. 调用规划器生成计划
+        plan = self.planner.plan(question)
+
+        # 检查计划是否成功生成
+        if not plan:
+            print("\n--- 任务终止 --- \n无法生成有效的行动计划。")
+            return
+
+        # 2. 调用执行器执行计划
+        final_answer = self.executor.execute(question, plan)
+
+        print(f"\n--- 任务完成 ---\n最终答案：{final_answer}")
+
+
+
+if __name__ == "__main__":
+    llm = HelloAgentsLLM()
+    agent = PlanAndSolveAgent(llm)
+
+    question = (
+        "一个水果店周一卖出了15个苹果。周二卖出的苹果数量是周一的两倍。"
+        "周三卖出的数量比周二少了5个。请问这三天总共卖出了多少个苹果？"
+    )
+    agent.run(question)
+
+
+
+
