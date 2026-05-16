@@ -45,7 +45,7 @@ class Planner:
         messages = [{"role": "user", "content": prompt}]
         print('--- 正在生成计划 ---')
         response_txt = self.llm_client.think(messages=messages) or ''
-        print(f'✅计划已经生成：\n{response_txt}')
+        # print(f'✅计划已经生成：\n{response_txt}')
 
         # 解析LLM输出的列表字符串
         try:
@@ -90,7 +90,7 @@ class Executor:
             response_txt = self.llm_client.think(messages=messages) or ''
             # 更新历史记录
             history += f"步骤 {i+1}: {step}\n结果:  {response_txt}\n\n"
-            print(f"✅步骤 {i+1} 执行完成：\n{response_txt}")
+            # print(f"✅步骤 {i+1} 执行完成：\n{response_txt}")
 
         # 循环结束，最后一步的相应就是最终答案
         final_answer = response_txt
@@ -131,10 +131,14 @@ if __name__ == "__main__":
     llm = HelloAgentsLLM()
     agent = PlanAndSolveAgent(llm)
 
-    question = (
-        "一个水果店周一卖出了15个苹果。周二卖出的苹果数量是周一的两倍。"
-        "周三卖出的数量比周二少了5个。请问这三天总共卖出了多少个苹果？"
-    )
+    question = """
+    我的背景：图像匹配，神经网络和深度学习。
+    目标：使用ai自动化科研，提出idea，帮助发顶会。
+    预期困难：1. 进行实验时，需要进行训练，一次训练将近一天。如何快速在半小时内进行实验验证idea是否可行。
+    2. ai会产生失败的idea，但计算资源有限。
+    3. ai失败时，需要分析失败的原因，重新生成idea。
+    4. 其他我没想到的困难。
+    """
     agent.run(question)
 
 
