@@ -2,6 +2,8 @@ import os
 from typing import Any, Callable, Dict
 from serpapi import SerpApiClient
 from dotenv import load_dotenv
+import operator
+import ast
 
 load_dotenv()  # 加载环境变量
 
@@ -76,6 +78,82 @@ def search(query: str) -> str:
         return f"抱歉，没找到关于'{query}'的相关的信息。请尝试使用其他关键词搜索。"
     except Exception as e:
         return f"搜索过程中出现错误: {e}"
+
+
+
+def calculator(expression: str) -> str:
+    """
+    一个简单的计算器，用于数学公式的计算。
+    参数: expression - 字符串形式的数学表达式，例如 "2 + 3 * 4"
+    
+    返回: 计算结果
+    """
+    print(f'--- 正在执行工具 [calculator] 计算{expression} ---')
+
+    operators = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.FloorDiv: operator.floordiv,
+        ast.Mod: operator.mod,
+        ast.Pow: operator.pow,
+        ast.USub: operator.neg,
+        ast.UAdd: operator.pos,
+    }
+
+    def eval_node(node):
+        if isinstance(node, ast.Expression):
+            return eval_node(node.body)
+ 
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return node.value
+ 
+        if isinstance(node, ast.BinOp):
+            left = eval_node(node.left)
+            right = eval_node(node.right)
+            op_type = type(node.op)
+ 
+            if op_type not in operators:
+                raise ValueError(f"不支持的运算符: {op_type.__name__}")
+ 
+            return operators[op_type](left, right)
+ 
+        if isinstance(node, ast.UnaryOp):
+            operand = eval_node(node.operand)
+            op_type = type(node.op)
+ 
+            if op_type not in operators:
+                raise ValueError(f"不支持的一元运算符: {op_type.__name__}")
+ 
+            return operators[op_type](operand)
+ 
+        raise ValueError("表达式中包含不支持的内容，只允许数字和数学运算符。")
+ 
+    try:
+        normalized_expression = (
+            expression
+            .replace("×", "*")
+            .replace("÷", "/")
+            .replace("＝", "=")
+            .replace("？", "")
+            .replace("?", "")
+            .strip()
+        )
+ 
+        if "=" in normalized_expression:
+            normalized_expression = normalized_expression.split("=")[0].strip()
+ 
+        tree = ast.parse(normalized_expression, mode="eval")
+        result = eval_node(tree)
+ 
+        return f"{expression} = {result}"
+    except ZeroDivisionError:
+        return "计算错误：除数不能为 0。"
+    except Exception as e:
+        return f"计算错误：{e}"
+
+
 
 
 if __name__ == "__main__":
