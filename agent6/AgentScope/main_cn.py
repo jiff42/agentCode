@@ -9,9 +9,9 @@ import random
 from typing import List, Dict, Optional
 
 from agentscope.agent import ReActAgent
-from agentscope.model import DashScopeChatModel
+from agentscope.model import DashScopeChatModel, OpenAIChatModel
 from agentscope.pipeline import MsgHub, sequential_pipeline, fanout_pipeline
-from agentscope.formatter import DashScopeMultiAgentFormatter
+from agentscope.formatter import DashScopeMultiAgentFormatter, OpenAIMultiAgentFormatter
 
 from prompt_cn import ChinesePrompts
 from game_roles import GameRoles
@@ -32,6 +32,68 @@ from utils_cn import (
     MAX_GAME_ROUND,
     MAX_DISCUSSION_ROUND,
 )
+
+
+def _get_first_env(*keys: str) -> str | None:
+    for k in keys:
+        v = os.environ.get(k)
+        if v:
+            return v
+    return None
+
+
+def _load_dotenv_from_repo_root() -> None:
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    dotenv_path = os.path.join(repo_root, ".env")
+    if not os.path.exists(dotenv_path):
+        return
+
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(dotenv_path, override=False)
+        return
+    except Exception:
+        pass
+
+    try:
+        with open(dotenv_path, "r", encoding="utf-8") as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except Exception:
+        return
+
+
+def _build_chat_model_and_formatter():
+    model_id = _get_first_env("LLM_MODEL_ID", "LLM_MODEL_ID_1")
+    base_url = _get_first_env("LLM_BASE_URL", "LLM_BASE_URL_1")
+    api_key = _get_first_env("LLM_API_KEY", "LLM_API_KEY_1")
+
+    if model_id and base_url:
+        model = OpenAIChatModel(
+            model_name=model_id,
+            api_key=api_key,
+            client_kwargs={"base_url": base_url},
+        )
+        formatter = OpenAIMultiAgentFormatter()
+        return model, formatter
+
+    model = DashScopeChatModel(
+        model_name="qwen-max",
+        api_key=os.environ["DASHSCOPE_API_KEY"],
+        enable_thinking=True,
+    )
+    formatter = DashScopeMultiAgentFormatter()
+    return model, formatter
 
 
 class ThreeKingdomsWerewolfGame:
@@ -57,15 +119,12 @@ class ThreeKingdomsWerewolfGame:
         name = get_chinese_name(character)
         self.roles[name] = role
         
+        model, formatter = _build_chat_model_and_formatter()
         agent = ReActAgent(
             name=name,
             sys_prompt=ChinesePrompts.get_role_prompt(role, character),
-            model=DashScopeChatModel(
-                model_name="qwen-max",
-                api_key=os.environ["DASHSCOPE_API_KEY"],
-                enable_thinking=True,
-            ),
-            formatter=DashScopeMultiAgentFormatter(),
+            model=model,
+            formatter=formatter,
         )
         
         # 角色身份确认
@@ -367,11 +426,24 @@ class ThreeKingdomsWerewolfGame:
 
 async def main():
     """主函数"""
-    # 检查环境变量
-    if "DASHSCOPE_API_KEY" not in os.environ:
-        print("❌ 请设置环境变量 DASHSCOPE_API_KEY")
+    _load_dotenv_from_repo_root()
+
+    has_custom_llm = bool(
+        _get_first_env("LLM_MODEL_ID", "LLM_MODEL_ID_1")
+        and _get_first_env("LLM_BASE_URL", "LLM_BASE_URL_1")
+    )
+
+    if not has_custom_llm and "DASHSCOPE_API_KEY" not in os.environ:
+        print(
+            "❌ 请在 .env 或环境变量中设置 LLM_BASE_URL + LLM_MODEL_ID（以及可选的 LLM_API_KEY），或设置 DASHSCOPE_API_KEY"
+        )
         return
-    
+
+    if has_custom_llm:
+        print("✅ 使用自定义 OpenAI 兼容模型")
+    else:
+        print("✅ 使用 DashScope 模型")
+
     print("🎮 欢迎来到三国狼人杀！")
     
     # 创建并运行游戏
