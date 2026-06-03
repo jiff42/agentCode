@@ -2,3 +2,4 @@ default.py
 .venv/
 .venv
 .env
+hello-agents/
